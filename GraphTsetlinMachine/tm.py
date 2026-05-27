@@ -41,6 +41,7 @@ class CommonTsetlinMachine():
 			number_of_clauses,
 			T,
 			s,
+			alternatives=1,
 			q=1.0,
 			max_included_literals=None,
 			boost_true_positive_feedback=1,
@@ -64,6 +65,8 @@ class CommonTsetlinMachine():
 			self.s = (s,) * self.depth
 		else:
 			self.s = s
+
+		self.alternatives = alternatives
 
 		self.q = q
 		self.max_included_literals = max_included_literals
