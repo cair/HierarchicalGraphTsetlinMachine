@@ -41,7 +41,7 @@ class CommonTsetlinMachine():
 			number_of_clauses,
 			T,
 			s,
-			alternatives=1,
+			or_alternatives=1,
 			q=1.0,
 			max_included_literals=None,
 			boost_true_positive_feedback=1,
@@ -66,7 +66,7 @@ class CommonTsetlinMachine():
 		else:
 			self.s = s
 
-		self.alternatives = alternatives
+		self.or_alternatives = or_alternatives
 
 		self.q = q
 		self.max_included_literals = max_included_literals
@@ -442,7 +442,7 @@ class CommonTsetlinMachine():
 #define CLASSES %d
 #define CLAUSES %d
 #define LITERALS %d
-#define ALTERNATIVES %d
+#define OR_ALTERNATIVES %d
 #define STATE_BITS %d
 #define BOOST_TRUE_POSITIVE_FEEDBACK %d
 #define THRESHOLD %d
@@ -456,7 +456,7 @@ class CommonTsetlinMachine():
 			self.number_of_outputs,
 			self.number_of_clauses,
 			self.number_of_literals,
-			self.alternatives,
+			self.or_alternatives,
 			self.number_of_state_bits,
 			self.boost_true_positive_feedback,
 			self.T,
