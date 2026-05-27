@@ -442,6 +442,7 @@ class CommonTsetlinMachine():
 #define CLASSES %d
 #define CLAUSES %d
 #define LITERALS %d
+#define ALTERNATIVES %d
 #define STATE_BITS %d
 #define BOOST_TRUE_POSITIVE_FEEDBACK %d
 #define THRESHOLD %d
@@ -455,6 +456,7 @@ class CommonTsetlinMachine():
 			self.number_of_outputs,
 			self.number_of_clauses,
 			self.number_of_literals,
+			self.alternatives,
 			self.number_of_state_bits,
 			self.boost_true_positive_feedback,
 			self.T,
