@@ -1,4 +1,4 @@
-# Tsetlin Machine for Logical Learning and Reasoning With Graphs
+# Hierarchical Tsetlin Machine for Logical Learning and Reasoning With Graphs (Work in Progress)
 
 ![License](https://img.shields.io/github/license/cair/tmu.svg?style=flat-square) ![Maintenance](https://img.shields.io/maintenance/yes/2026?style=flat-square)
 
