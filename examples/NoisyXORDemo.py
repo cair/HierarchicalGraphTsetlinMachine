@@ -1,7 +1,7 @@
-from GraphTsetlinMachine.graphs import Graphs
+from HierarchicalGraphTsetlinMachine.graphs import Graphs
 import numpy as np
 from scipy.sparse import csr_matrix
-from GraphTsetlinMachine.tm import MultiClassGraphTsetlinMachine
+from HierarchicalGraphTsetlinMachine.tm import MultiClassGraphTsetlinMachine
 from time import time
 import argparse
 import random
