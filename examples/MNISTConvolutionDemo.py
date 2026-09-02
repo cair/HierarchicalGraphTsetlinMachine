@@ -1,4 +1,4 @@
-from GraphTsetlinMachine.graphs import Graphs
+from HierarchicalGraphTsetlinMachine.graphs import Graphs
 import numpy as np
 from scipy.sparse import csr_matrix
 from HierarchicalGraphTsetlinMachine.tm import MultiClassGraphTsetlinMachine
