@@ -117,10 +117,9 @@ class CommonTsetlinMachine():
 
 		self.message_ta_state_gpu = []
 		for depth in range(self.depth - 1):
-			self.message_ta_state_gpu.append(cuda.mem_alloc(self.number_of_or_alternatives*self.number_of_clauses*self.number_of_message_chunks*self.number_of_state_bits*4))
+			self.message_ta_state_gpu.append(cuda.mem_alloc(self.number_of_or_alternatives*self.number_of_and_alternatives*self.number_of_clauses*self.number_of_message_chunks*self.number_of_state_bits*4))
 
 		self.clause_weights_gpu = cuda.mem_alloc(self.number_of_outputs * self.number_of_clauses * 4)
-		# self.clause_weights_dummy_gpu = cuda.mem_alloc(self.number_of_outputs * self.number_of_clauses * 4) # Never used
 
 		self.class_sum_gpu = cuda.mem_alloc(self.number_of_outputs*4)
 		self.clause_node_gpu = cuda.mem_alloc(int(self.number_of_clauses) * 4)
@@ -917,6 +916,8 @@ class MultiClassGraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=1,
+			number_of_and_alternatives=1,
 			q=1.0,
 			max_included_literals=None,
 			boost_true_positive_feedback=1,
@@ -933,6 +934,8 @@ class MultiClassGraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=number_of_or_alternatives,
+			number_of_and_alternatives=number_of_and_alternatives,
 			q=q,
 			max_included_literals=max_included_literals,
 			boost_true_positive_feedback=boost_true_positive_feedback,
@@ -975,6 +978,8 @@ class MultiOutputGraphTsetlinMachine(CommonTsetlinMachine):
 		number_of_clauses,
 		T,
 		s,
+		number_of_or_alternatives=1,
+		number_of_and_alternatives=1,
 		q=1.0,
 		max_included_literals=None,
 		boost_true_positive_feedback=1,
@@ -991,6 +996,8 @@ class MultiOutputGraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=number_of_or_alternatives,
+			number_of_and_alternatives=number_of_and_alternatives,
 			q=q,
 			max_included_literals=max_included_literals,
 			boost_true_positive_feedback=boost_true_positive_feedback,
@@ -1029,6 +1036,8 @@ class GraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=1,
+			number_of_and_alternatives=1,
 			q=1.0,
 			max_included_literals=None,
 			boost_true_positive_feedback=1,
@@ -1045,6 +1054,8 @@ class GraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=number_of_or_alternatives,
+			number_of_and_alternatives=number_of_and_alternatives,
 			q=q,
 			max_included_literals=max_included_literals,
 			boost_true_positive_feedback=boost_true_positive_feedback,
