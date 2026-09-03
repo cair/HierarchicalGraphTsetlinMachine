@@ -41,6 +41,8 @@ class CommonTsetlinMachine():
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=1,
+			number_of_and_alternatives=1,
 			q=1.0,
 			max_included_literals=None,
 			boost_true_positive_feedback=1,
@@ -56,7 +58,6 @@ class CommonTsetlinMachine():
 		print("Initialization of sparse structure.")
 
 		self.number_of_clauses = number_of_clauses
-		self.number_of_clause_chunks = (number_of_clauses-1)//32 + 1
 		self.T = int(T)
 
 		self.depth = depth
@@ -64,6 +65,9 @@ class CommonTsetlinMachine():
 			self.s = (s,) * self.depth
 		else:
 			self.s = s
+
+		self.number_of_or_alternatives = number_of_or_alternatives
+		self.number_of_and_alternatives = number_of_and_alternatives
 
 		self.q = q
 		self.max_included_literals = max_included_literals
@@ -108,14 +112,13 @@ class CommonTsetlinMachine():
 		self.initialized = False
 
 	def allocate_gpu_memory(self):
-		self.ta_state_gpu = cuda.mem_alloc(self.number_of_clauses*self.number_of_ta_chunks*self.number_of_state_bits*4)
+		self.ta_state_gpu = cuda.mem_alloc(self.number_of_or_alternatives*self.number_of_and_alternatives*self.number_of_clauses*self.number_of_ta_chunks*self.number_of_state_bits*4)
 
 		self.message_ta_state_gpu = []
 		for depth in range(self.depth - 1):
-			self.message_ta_state_gpu.append(cuda.mem_alloc(self.number_of_clauses*self.number_of_message_chunks*self.number_of_state_bits*4))
+			self.message_ta_state_gpu.append(cuda.mem_alloc(self.number_of_or_alternatives*self.number_of_and_alternatives*self.number_of_clauses*self.number_of_message_chunks*self.number_of_state_bits*4))
 
 		self.clause_weights_gpu = cuda.mem_alloc(self.number_of_outputs * self.number_of_clauses * 4)
-		# self.clause_weights_dummy_gpu = cuda.mem_alloc(self.number_of_outputs * self.number_of_clauses * 4) # Never used
 
 		self.class_sum_gpu = cuda.mem_alloc(self.number_of_outputs*4)
 		self.clause_node_gpu = cuda.mem_alloc(int(self.number_of_clauses) * 4)
@@ -182,7 +185,6 @@ class CommonTsetlinMachine():
 				grid=self.grid,
 				block=self.block,
 			)
-			cuda.Context.synchronize()
 
 			ta_states = np.empty(self.number_of_clauses * self.number_of_literals, dtype=np.uint32)
 			cuda.memcpy_dtoh(ta_states, ta_states_gpu)
@@ -198,7 +200,6 @@ class CommonTsetlinMachine():
 				grid=self.grid,
 				block=self.block,
 			)
-			cuda.Context.synchronize()
 
 			message_ta_state = np.empty(self.number_of_clauses * self.number_of_message_literals, dtype=np.uint32)
 			cuda.memcpy_dtoh(message_ta_state, message_ta_states_gpu)
@@ -519,11 +520,8 @@ class CommonTsetlinMachine():
 
 			for depth in range(self.depth-1):
 				self.prepare_message_ta_state(self.message_ta_state_gpu[depth], grid=self.grid, block=self.block)
-
-			cuda.Context.synchronize()
 		elif incremental == False:
 			self.prepare(g.state, self.ta_state_gpu, self.clause_weights_gpu, self.class_sum_gpu, grid=self.grid, block=self.block)
-			cuda.Context.synchronize()
 
 		if not np.array_equal(self.graphs_signature_train, graphs.signature):
 			self.graphs_signature_train = graphs.signature
@@ -591,7 +589,6 @@ class CommonTsetlinMachine():
 			self.number_of_include_actions,
 			encoded_X
 		)
-		cuda.Context.synchronize()
 
 		# Iterate over layers
 		for depth in range(self.depth-1):
@@ -602,7 +599,6 @@ class CommonTsetlinMachine():
 				number_of_graph_nodes,
 				clause_X_int
 			)
-			cuda.Context.synchronize()
 
 			# Send messages to neighbors
 			self.exchange_messages.prepared_call(
@@ -617,7 +613,6 @@ class CommonTsetlinMachine():
 				edge,
 				clause_X_int
 			)
-			cuda.Context.synchronize()
 
 			# Encode messages bitwise
 			self.encode_messages.prepared_call(
@@ -627,7 +622,6 @@ class CommonTsetlinMachine():
 				clause_X_int,
 				clause_X[depth]
 			)
-			cuda.Context.synchronize()
 
 			# Calculate next round of messages
 			self.calculate_messages_conditional.prepared_call(
@@ -643,7 +637,6 @@ class CommonTsetlinMachine():
 				self.number_of_include_actions,
 				clause_X[depth]
 			)
-			cuda.Context.synchronize()
 
 			tmp = current_clause_node_output
 			current_clause_node_output = next_clause_node_output
@@ -657,7 +650,6 @@ class CommonTsetlinMachine():
 			number_of_graph_nodes,
 			self.class_sum_gpu
 		)
-		cuda.Context.synchronize()
 
 		return current_clause_node_output
 
@@ -698,7 +690,6 @@ class CommonTsetlinMachine():
 					int(graphs.number_of_graph_nodes[e]),
 					self.clause_node_gpu
 				)
-				cuda.Context.synchronize()
 
 				# Select which clauses to update and update weights
 				self.select_clause_updates.prepared_call(
@@ -712,7 +703,6 @@ class CommonTsetlinMachine():
 					self.clause_node_gpu,
 					self.class_clause_update_gpu
 				)
-				cuda.Context.synchronize()
 
 				# Update clause Tsetlin automata blocks for layer one
 				self.update.prepared_call(
@@ -728,7 +718,6 @@ class CommonTsetlinMachine():
 					self.encoded_X_train_gpu,
 					self.class_clause_update_gpu
 				)
-				cuda.Context.synchronize()
 
 				# Update clause Tsetlin automata blocks for deeper layers
 				for depth in range(self.depth-1):
@@ -744,7 +733,6 @@ class CommonTsetlinMachine():
 						self.clause_X_train_gpu[depth],
 						self.class_clause_update_gpu
 					)
-					cuda.Context.synchronize()
 
 		self.ta_state = np.array([])
 		self.clause_weights = np.array([])
@@ -910,6 +898,8 @@ class MultiClassGraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=1,
+			number_of_and_alternatives=1,
 			q=1.0,
 			max_included_literals=None,
 			boost_true_positive_feedback=1,
@@ -926,6 +916,8 @@ class MultiClassGraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=number_of_or_alternatives,
+			number_of_and_alternatives=number_of_and_alternatives,
 			q=q,
 			max_included_literals=max_included_literals,
 			boost_true_positive_feedback=boost_true_positive_feedback,
@@ -968,6 +960,8 @@ class MultiOutputGraphTsetlinMachine(CommonTsetlinMachine):
 		number_of_clauses,
 		T,
 		s,
+		number_of_or_alternatives=1,
+		number_of_and_alternatives=1,
 		q=1.0,
 		max_included_literals=None,
 		boost_true_positive_feedback=1,
@@ -984,6 +978,8 @@ class MultiOutputGraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=number_of_or_alternatives,
+			number_of_and_alternatives=number_of_and_alternatives,
 			q=q,
 			max_included_literals=max_included_literals,
 			boost_true_positive_feedback=boost_true_positive_feedback,
@@ -1022,6 +1018,8 @@ class GraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=1,
+			number_of_and_alternatives=1,
 			q=1.0,
 			max_included_literals=None,
 			boost_true_positive_feedback=1,
@@ -1038,6 +1036,8 @@ class GraphTsetlinMachine(CommonTsetlinMachine):
 			number_of_clauses,
 			T,
 			s,
+			number_of_or_alternatives=number_of_or_alternatives,
+			number_of_and_alternatives=number_of_and_alternatives,
 			q=q,
 			max_included_literals=max_included_literals,
 			boost_true_positive_feedback=boost_true_positive_feedback,
