@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Ole-Christoffer Granmo and the University of Agder
+# Copyright (c) 2024 Ole-Christoffer Granmo
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ import sys
 
 import numpy as np
 
-import HierarchicalGraphTsetlinMachine.kernels as kernels
+import GraphTsetlinMachine.kernels as kernels
 
 import pycuda.curandom as curandom
 import pycuda.driver as cuda
@@ -440,7 +440,6 @@ class CommonTsetlinMachine():
 #define CLASSES %d
 #define CLAUSES %d
 #define LITERALS %d
-#define OR_ALTERNATIVES %d
 #define STATE_BITS %d
 #define BOOST_TRUE_POSITIVE_FEEDBACK %d
 #define THRESHOLD %d
@@ -454,7 +453,6 @@ class CommonTsetlinMachine():
 			self.number_of_outputs,
 			self.number_of_clauses,
 			self.number_of_literals,
-			self.number_of_or_alternatives,
 			self.number_of_state_bits,
 			self.boost_true_positive_feedback,
 			self.T,
@@ -531,8 +529,8 @@ class CommonTsetlinMachine():
 			self.encoded_X_train_gpu = cuda.mem_alloc(graphs.X.nbytes)
 			cuda.memcpy_htod(self.encoded_X_train_gpu, graphs.X)
 
-			self.current_clause_node_output_train_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_nodes) * 4)
-			self.next_clause_node_output_train_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_nodes) * 4)
+			self.current_clause_node_output_train_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_node_chunks) * 4)
+			self.next_clause_node_output_train_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_node_chunks) * 4)
 			
 			self.clause_X_int_train_gpu = cuda.mem_alloc(int(graphs.max_number_of_graph_nodes * self.number_of_message_literals) * 4)
 			
@@ -752,8 +750,8 @@ class CommonTsetlinMachine():
 			self.encoded_X_test_gpu = cuda.mem_alloc(graphs.X.nbytes)
 			cuda.memcpy_htod(self.encoded_X_test_gpu, graphs.X)
 
-			self.current_clause_node_output_test_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_nodes) * 4)
-			self.next_clause_node_output_test_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_nodes) * 4)
+			self.current_clause_node_output_test_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_node_chunks) * 4)
+			self.next_clause_node_output_test_gpu = cuda.mem_alloc(int(self.number_of_clauses * graphs.max_number_of_graph_node_chunks) * 4)
 			
 			self.clause_X_int_test_gpu = cuda.mem_alloc(int(graphs.max_number_of_graph_nodes * self.number_of_message_literals) * 4)
 
