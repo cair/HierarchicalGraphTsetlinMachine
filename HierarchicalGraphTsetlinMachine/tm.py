@@ -186,7 +186,6 @@ class CommonTsetlinMachine():
 				grid=self.grid,
 				block=self.block,
 			)
-			cuda.Context.synchronize()
 
 			ta_states = np.empty(self.number_of_clauses * self.number_of_literals, dtype=np.uint32)
 			cuda.memcpy_dtoh(ta_states, ta_states_gpu)
@@ -202,7 +201,6 @@ class CommonTsetlinMachine():
 				grid=self.grid,
 				block=self.block,
 			)
-			cuda.Context.synchronize()
 
 			message_ta_state = np.empty(self.number_of_clauses * self.number_of_message_literals, dtype=np.uint32)
 			cuda.memcpy_dtoh(message_ta_state, message_ta_states_gpu)
@@ -525,11 +523,8 @@ class CommonTsetlinMachine():
 
 			for depth in range(self.depth-1):
 				self.prepare_message_ta_state(self.message_ta_state_gpu[depth], grid=self.grid, block=self.block)
-
-			cuda.Context.synchronize()
 		elif incremental == False:
 			self.prepare(g.state, self.ta_state_gpu, self.clause_weights_gpu, self.class_sum_gpu, grid=self.grid, block=self.block)
-			cuda.Context.synchronize()
 
 		if not np.array_equal(self.graphs_signature_train, graphs.signature):
 			self.graphs_signature_train = graphs.signature
@@ -597,7 +592,6 @@ class CommonTsetlinMachine():
 			self.number_of_include_actions,
 			encoded_X
 		)
-		cuda.Context.synchronize()
 
 		# Iterate over layers
 		for depth in range(self.depth-1):
@@ -608,7 +602,6 @@ class CommonTsetlinMachine():
 				number_of_graph_nodes,
 				clause_X_int
 			)
-			cuda.Context.synchronize()
 
 			# Send messages to neighbors
 			self.exchange_messages.prepared_call(
@@ -623,7 +616,6 @@ class CommonTsetlinMachine():
 				edge,
 				clause_X_int
 			)
-			cuda.Context.synchronize()
 
 			# Encode messages bitwise
 			self.encode_messages.prepared_call(
@@ -633,7 +625,6 @@ class CommonTsetlinMachine():
 				clause_X_int,
 				clause_X[depth]
 			)
-			cuda.Context.synchronize()
 
 			# Calculate next round of messages
 			self.calculate_messages_conditional.prepared_call(
@@ -649,7 +640,6 @@ class CommonTsetlinMachine():
 				self.number_of_include_actions,
 				clause_X[depth]
 			)
-			cuda.Context.synchronize()
 
 			tmp = current_clause_node_output
 			current_clause_node_output = next_clause_node_output
@@ -663,7 +653,6 @@ class CommonTsetlinMachine():
 			number_of_graph_nodes,
 			self.class_sum_gpu
 		)
-		cuda.Context.synchronize()
 
 		return current_clause_node_output
 
@@ -704,7 +693,6 @@ class CommonTsetlinMachine():
 					int(graphs.number_of_graph_nodes[e]),
 					self.clause_node_gpu
 				)
-				cuda.Context.synchronize()
 
 				# Select which clauses to update and update weights
 				self.select_clause_updates.prepared_call(
@@ -718,7 +706,6 @@ class CommonTsetlinMachine():
 					self.clause_node_gpu,
 					self.class_clause_update_gpu
 				)
-				cuda.Context.synchronize()
 
 				# Update clause Tsetlin automata blocks for layer one
 				self.update.prepared_call(
@@ -734,7 +721,6 @@ class CommonTsetlinMachine():
 					self.encoded_X_train_gpu,
 					self.class_clause_update_gpu
 				)
-				cuda.Context.synchronize()
 
 				# Update clause Tsetlin automata blocks for deeper layers
 				for depth in range(self.depth-1):
@@ -750,7 +736,6 @@ class CommonTsetlinMachine():
 						self.clause_X_train_gpu[depth],
 						self.class_clause_update_gpu
 					)
-					cuda.Context.synchronize()
 
 		self.ta_state = np.array([])
 		self.clause_weights = np.array([])
