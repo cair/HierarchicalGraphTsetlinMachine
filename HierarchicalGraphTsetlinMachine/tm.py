@@ -58,7 +58,6 @@ class CommonTsetlinMachine():
 		print("Initialization of sparse structure.")
 
 		self.number_of_clauses = number_of_clauses
-		self.number_of_clause_chunks = (number_of_clauses-1)//32 + 1
 		self.T = int(T)
 
 		self.depth = depth
