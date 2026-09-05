@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Ole-Christoffer Granmo
+# Copyright (c) 2026 Ole-Christoffer Granmo and the University of Agder
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,8 +31,6 @@ code_header = """
 
     #define MESSAGE_LITERALS (MESSAGE_SIZE*2)
     #define MESSAGE_CHUNKS (((MESSAGE_LITERALS-1)/INT_SIZE + 1))
-
-    #define NODE_CHUNKS ((MAX_NODES-1)/INT_SIZE + 1)
 
     #if (LITERALS % 32 != 0)
     #define FILTER (~(0xffffffff << (LITERALS % INT_SIZE)))
@@ -286,25 +284,14 @@ code_evaluate = """
             int index = blockIdx.x * blockDim.x + threadIdx.x;
             int stride = blockDim.x * gridDim.x;
 
-            int number_of_node_chunks = (number_of_nodes - 1)/INT_SIZE + 1;
-            unsigned int node_filter;
-            if ((number_of_nodes % INT_SIZE) != 0) {
-                node_filter = (~(0xffffffff << (number_of_nodes % INT_SIZE)));
-            } else {
-                node_filter = 0xffffffff;
-            }
 
             for (int clause = index; clause < CLAUSES; clause += stride) {
                 int clause_output = 0;
-                for (int k = 0; k < number_of_node_chunks-1; ++k) {
-                    if (global_clause_node_output[clause*NODE_CHUNKS + k]) {
+                for (int k = 0; k < number_of_nodes; ++k) {
+                    if (global_clause_node_output[clause*number_of_nodes + k] > 0) {
                         clause_output = 1;
                         break;
                     }
-                }
-
-                if (global_clause_node_output[clause*NODE_CHUNKS + number_of_node_chunks-1] & node_filter) {
-                    clause_output = 1;
                 }
 
                 if (clause_output) {
@@ -334,10 +321,7 @@ code_evaluate = """
             for (int clause = index; clause < CLAUSES; clause += stride) {
                 clause_true_node_len = 0;
                 for (int node = 0; node < number_of_nodes; ++node) {
-                    int node_chunk = node / INT_SIZE;
-                    int node_pos = node % INT_SIZE;
-
-                    if (global_clause_node_output[clause*NODE_CHUNKS + node_chunk] & (1 << node_pos)) {
+                    if (global_clause_node_output[clause*number_of_nodes + node] > 0) {
                         clause_true_node[clause_true_node_len] = node;
                         clause_true_node_len++;
                     }
@@ -418,52 +402,36 @@ code_evaluate = """
             int index = blockIdx.x * blockDim.x + threadIdx.x;
             int stride = blockDim.x * gridDim.x;
 
-            unsigned int clause_node_output;
-
-            int number_of_node_chunks = (number_of_nodes - 1)/INT_SIZE + 1;
-            unsigned int node_filter;
-            if ((number_of_nodes % INT_SIZE) != 0) {
-                node_filter = (~(0xffffffff << (number_of_nodes % INT_SIZE)));
-            } else {
-                node_filter = 0xffffffff;
-            }
-
             unsigned int *X = &global_X[graph_index * LA_CHUNKS];
 
-            for (int clause_node_chunk = index; clause_node_chunk < (CLAUSES)*(NODE_CHUNKS); clause_node_chunk += stride) {
-                int clause = clause_node_chunk % CLAUSES;
-                int node_chunk = clause_node_chunk / CLAUSES;
+            for (int clause_node = index; clause_node < CLAUSES*number_of_nodes; clause_node += stride) {
+                int clause = clause_node % CLAUSES;
+                int node = clause_node / CLAUSES;
 
                 unsigned int *ta_state = &global_ta_state[clause*LA_CHUNKS*STATE_BITS];
 
-                if (node_chunk == 0) {
+                if (node == 0) {
                    number_of_include_actions[clause] = count_number_of_include_actions(ta_state);
                 }
 
-                clause_node_output = ~0;
-                for (int node_pos = 0; (node_pos < INT_SIZE) && ((node_chunk * INT_SIZE + node_pos) < number_of_nodes); ++node_pos) {
-                    int node = node_chunk * INT_SIZE + node_pos;
-
-                    if (node_type[graph_index + node] == (clause % number_of_node_types)) {
-                        for (int la_chunk = 0; la_chunk < LA_CHUNKS-1; ++la_chunk) {
-                            if ((ta_state[la_chunk*STATE_BITS + STATE_BITS - 1] & X[node*LA_CHUNKS + la_chunk]) != ta_state[la_chunk*STATE_BITS + STATE_BITS - 1]) {
-                                clause_node_output &= ~(1 << node_pos);
-                            }
+                unsigned int clause_node_output = 1;      
+                if (node_type[graph_index + node] == (clause % number_of_node_types)) {
+                    for (int la_chunk = 0; la_chunk < LA_CHUNKS-1; ++la_chunk) {
+                        if ((ta_state[la_chunk*STATE_BITS + STATE_BITS - 1] & X[node*LA_CHUNKS + la_chunk]) != ta_state[la_chunk*STATE_BITS + STATE_BITS - 1]) {
+                            clause_node_output = 0;
+                            break;
                         }
-
-                        if ((ta_state[(LA_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & X[node*LA_CHUNKS + LA_CHUNKS-1] & FILTER) != (ta_state[(LA_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & FILTER)) {
-                            clause_node_output &= ~(1 << node_pos);
-                        }
-                    } else {
-                        clause_node_output &= ~(1 << node_pos);   
                     }
+
+                    if ((ta_state[(LA_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & X[node*LA_CHUNKS + LA_CHUNKS-1] & FILTER) != (ta_state[(LA_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & FILTER)) {
+                        clause_node_output = 0;
+                    }
+                } else {
+                    clause_node_output = 0;   
                 }
                 
-                if (node_chunk == number_of_node_chunks - 1) {
-                    global_clause_node_output[clause*NODE_CHUNKS + node_chunk] = clause_node_output & node_filter;
-                } else {
-                    global_clause_node_output[clause*NODE_CHUNKS + node_chunk] = clause_node_output;
-                }
+                
+                global_clause_node_output[clause*number_of_nodes + node] = clause_node_output;
             }
         }
 
@@ -482,50 +450,33 @@ code_evaluate = """
             int index = blockIdx.x * blockDim.x + threadIdx.x;
             int stride = blockDim.x * gridDim.x;
 
-            unsigned int clause_node_output;
-
-            int number_of_node_chunks = (number_of_nodes - 1)/INT_SIZE + 1;
-            unsigned int node_filter;
-            if ((number_of_nodes % INT_SIZE) != 0) {
-                node_filter = (~(0xffffffff << (number_of_nodes % INT_SIZE)));
-            } else {
-                node_filter = 0xffffffff;
-            }
-
-            for (int clause_node_chunk = index; clause_node_chunk < (CLAUSES)*(NODE_CHUNKS); clause_node_chunk += stride) {
-                int clause = clause_node_chunk / NODE_CHUNKS;
-                int node_chunk = clause_node_chunk % NODE_CHUNKS;
+            for (int clause_node = index; clause_node < CLAUSES*number_of_nodes; clause_node += stride) {
+                int clause = clause_node / number_of_nodes;
+                int node = clause_node % number_of_nodes;
 
                 unsigned int *ta_state = &global_ta_state[clause*MESSAGE_CHUNKS*STATE_BITS];
 
-                if (node_chunk == 0) {
+                if (node == 0) {
                    number_of_include_actions[clause] += count_number_of_include_actions_message(ta_state);
                 }
 
-                clause_node_output = ~0;
-                for (int node_pos = 0; (node_pos < INT_SIZE) && ((node_chunk * INT_SIZE + node_pos) < number_of_nodes); ++node_pos) {
-                    int node = node_chunk * INT_SIZE + node_pos;
-
-                    if (node_type[graph_index + node] == (clause % number_of_node_types)) {
-                        for (int la_chunk = 0; la_chunk < MESSAGE_CHUNKS-1; ++la_chunk) {
-                            if ((ta_state[la_chunk*STATE_BITS + STATE_BITS - 1] & X[node*MESSAGE_CHUNKS + la_chunk]) != ta_state[la_chunk*STATE_BITS + STATE_BITS - 1]) {
-                                clause_node_output &= ~(1 << node_pos);
-                            }
+                unsigned int clause_node_output = 1;
+                if (node_type[graph_index + node] == (clause % number_of_node_types)) {
+                    for (int la_chunk = 0; la_chunk < MESSAGE_CHUNKS-1; ++la_chunk) {
+                        if ((ta_state[la_chunk*STATE_BITS + STATE_BITS - 1] & X[node*MESSAGE_CHUNKS + la_chunk]) != ta_state[la_chunk*STATE_BITS + STATE_BITS - 1]) {
+                            clause_node_output = 0;
+                            break
                         }
-
-                        if ((ta_state[(MESSAGE_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & X[node*MESSAGE_CHUNKS + MESSAGE_CHUNKS-1] & MESSAGE_FILTER) != (ta_state[(MESSAGE_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & MESSAGE_FILTER)) {
-                            clause_node_output &= ~(1 << node_pos);
-                        }
-                    } else {
-                        clause_node_output &= ~(1 << node_pos);
                     }
-                }
-                
-                if (node_chunk == number_of_node_chunks - 1) {
-                    global_clause_node_output[clause*NODE_CHUNKS + node_chunk] = global_clause_node_output_condition[clause*NODE_CHUNKS + node_chunk] & clause_node_output & node_filter;
+
+                    if ((ta_state[(MESSAGE_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & X[node*MESSAGE_CHUNKS + MESSAGE_CHUNKS-1] & MESSAGE_FILTER) != (ta_state[(MESSAGE_CHUNKS-1)*STATE_BITS + STATE_BITS - 1] & MESSAGE_FILTER)) {
+                        clause_node_output = 0;
+                    }
                 } else {
-                    global_clause_node_output[clause*NODE_CHUNKS + node_chunk] = global_clause_node_output_condition[clause*NODE_CHUNKS + node_chunk] & clause_node_output;
+                    clause_node_output = 0;
                 }
+                    
+                global_clause_node_output[clause*number_of_nodes + node] = global_clause_node_output_condition[clause*number_of_nodes + node] * clause_node_output;
             }
         }
 
@@ -569,10 +520,7 @@ code_evaluate = """
 
                 int edge_index = global_edge_index;
                 for (int source_node = 0; source_node < number_of_nodes; ++source_node) {
-                    unsigned int source_node_chunk = source_node / INT_SIZE;
-                    unsigned int source_node_pos = source_node % INT_SIZE;
-                    
-                    if ((global_clause_node_output[clause*NODE_CHUNKS + source_node_chunk] & (1 << source_node_pos)) > 0) { 
+                    if (global_clause_node_output[clause*number_of_nodes + source_node] > 0) { 
                         for (int i = 0; i < number_of_graph_node_edges[node_index + source_node]; ++i) {
                             int destination_node = edge[(edge_index + i) * 2];
                             int edge_type = edge[(edge_index + i)* 2 + 1];
@@ -668,21 +616,24 @@ code_prepare = """
 code_transform = """
 	extern "C" {
 
-	__global__ void transform(int *global_clause_node_output, int number_of_nodes, int *transformed_X) {
+	__global__ void transform(
+        int *global_clause_node_output,
+        int number_of_nodes,
+        int *transformed_X
+    )
+    {
 		int index = blockIdx.x * blockDim.x + threadIdx.x;
 		int stride = blockDim.x * gridDim.x;
 
 		for (int clause = index; clause < CLAUSES; clause += stride) {
 			int clause_output = 0;
-			for (int n = 0; n < number_of_nodes; n++) {
-				int chunk_nr = n / INT_SIZE;
-				int chunk_pos = n % INT_SIZE;
-
-				if (global_clause_node_output[clause * NODE_CHUNKS + chunk_nr] & (1 << chunk_pos)) {
+			for (int node = 0; node < number_of_nodes; node++) {
+				if (global_clause_node_output[clause * number_of_nodes + node] > 0) {
 					clause_output = 1;
 					break;
 				}
 			}
+
 			if (clause_output)
 				transformed_X[clause] = 1;
 			else
@@ -692,18 +643,16 @@ code_transform = """
 
 	__global__ void transform_nodewise(
         unsigned int *global_clause_node_output,
-        int number_of_nodes, int *transformed_X
-    ) {
+        int number_of_nodes,
+        int *transformed_X
+    )
+    {
 		int index = blockIdx.x * blockDim.x + threadIdx.x;
 		int stride = blockDim.x * gridDim.x;
 
 		for (int clause = index; clause < CLAUSES; clause += stride) {
-			for (int n = 0; n < number_of_nodes; n++) {
-				unsigned int chunk_nr = n / INT_SIZE;
-				unsigned int chunk_pos = n % INT_SIZE;
-
-				transformed_X[clause * number_of_nodes + n] =
-					(global_clause_node_output[clause * NODE_CHUNKS + chunk_nr] & (1 << chunk_pos)) > 0;
+			for (int node = 0; node < number_of_nodes; node++) {
+				transformed_X[clause * number_of_nodes + node] = global_clause_node_output[clause * number_of_nodes+ node] > 0;
 			}
 		}
 	}
