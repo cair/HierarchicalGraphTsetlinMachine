@@ -244,7 +244,6 @@ code_update = """
 code_evaluate = """
     extern "C"
     {
-
         // Counts number of include actions for a given clause
         __device__ inline int count_number_of_include_actions_message(unsigned int *ta_state)
         {
@@ -465,7 +464,7 @@ code_evaluate = """
                     for (int la_chunk = 0; la_chunk < MESSAGE_CHUNKS-1; ++la_chunk) {
                         if ((ta_state[la_chunk*STATE_BITS + STATE_BITS - 1] & X[node*MESSAGE_CHUNKS + la_chunk]) != ta_state[la_chunk*STATE_BITS + STATE_BITS - 1]) {
                             clause_node_output = 0;
-                            break
+                            break;
                         }
                     }
 
