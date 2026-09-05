@@ -283,9 +283,8 @@ code_evaluate = """
             int index = blockIdx.x * blockDim.x + threadIdx.x;
             int stride = blockDim.x * gridDim.x;
 
-
             for (int clause = index; clause < CLAUSES; clause += stride) {
-                int clause_output = 0;
+                unsigned int clause_output = 0;
                 for (int k = 0; k < number_of_nodes; ++k) {
                     if (global_clause_node_output[clause*number_of_nodes + k] > 0) {
                         clause_output = 1;
@@ -475,7 +474,7 @@ code_evaluate = """
                     clause_node_output = 0;
                 }
                     
-                global_clause_node_output[clause*number_of_nodes + node] = global_clause_node_output_condition[clause*number_of_nodes + node] * clause_node_output;
+                global_clause_node_output[clause*number_of_nodes + node] = global_clause_node_output_condition[clause*number_of_nodes + node] && clause_node_output;
             }
         }
 
