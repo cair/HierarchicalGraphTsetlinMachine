@@ -1,7 +1,7 @@
 from GraphTsetlinMachine.graphs import Graphs
 import numpy as np
 from scipy.sparse import csr_matrix
-from GraphTsetlinMachine.tm import MultiClassGraphTsetlinMachine
+from HierarchicalGraphTsetlinMachine.tm import MultiClassGraphTsetlinMachine
 from time import time
 import argparse
 from skimage.util import view_as_windows
