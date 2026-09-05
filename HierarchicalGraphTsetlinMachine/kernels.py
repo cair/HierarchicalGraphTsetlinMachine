@@ -474,7 +474,7 @@ code_evaluate = """
                     clause_node_output = 0;
                 }
                     
-                global_clause_node_output[clause*number_of_nodes + node] = global_clause_node_output_condition[clause*number_of_nodes + node] && clause_node_output;
+                global_clause_node_output[clause*number_of_nodes + node] = global_clause_node_output_condition[clause*number_of_nodes + node] * clause_node_output;
             }
         }
 
